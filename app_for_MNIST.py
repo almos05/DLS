@@ -1,4 +1,5 @@
 import torch
+import io
 
 from torch import nn
 from torch.nn import functional as F
@@ -11,6 +12,7 @@ import tkinter as tk
 import win32gui
 from PIL import ImageGrab, Image
 import numpy as np
+import PIL.ImageOps
 
 
 class LeNet(nn.Module):
@@ -41,7 +43,7 @@ model.eval()
 
 
 def predict_digit(img):
-    # изменение рзмера изобржений на 28x28
+    # изменение размера изобржений на 28x28
     transform = transforms.Compose([
         transforms.Resize((26, 26)),
         transforms.ToTensor(),
@@ -51,11 +53,10 @@ def predict_digit(img):
     # конвертируем rgb в grayscale
     img = img.convert('L')
 
-    plt.imshow(img)
+    plt.imshow(img, cmap="grey")
     plt.show()
     # Примените трансформации
     image_tensor = transform(img).unsqueeze(0)  # Добавьте размерность батча
-    print(image_tensor.shape)
 
     with torch.no_grad():
         output = model(image_tensor)
@@ -78,27 +79,29 @@ class App(tk.Tk):
         self.x = self.y = 0
 
         # Создание элементов
-        self.canvas = tk.Canvas(self, width=300, height=300, bg="white", cursor="cross")
-        self.label = tk.Label(self, text="Думаю..", font=("Helvetica", 48))
-        self.classify_btn = tk.Button(self, text="Распознать", command=self.classify_handwriting)
-        self.button_clear = tk.Button(self, text="Очистить", command=self.clear_all)
+        self.canvas = tk.Canvas(self, width=300, height=300, bg="black", cursor="draped_box")
+        self.label = tk.Label(self, text="Думаю..", font=("Helvetica", 24), bg="black", fg="white")
+        self.classify_btn = tk.Button(self, text="Распознать", command=self.classify_handwriting, bg="black", fg="white")
+        self.button_clear = tk.Button(self, text="Очистить", command=self.clear_all, bg="black", fg="white")
+        self.button_info = tk.Button(self, text="Info", command=self.print_info, bg="black", fg="white")
 
         # Сетка окна
-        self.canvas.grid(row=0, column=0, pady=2, sticky=W, )
+        self.canvas.grid(row=0, column=0, pady=2, sticky=W)
         self.label.grid(row=0, column=1, pady=2, padx=2)
         self.classify_btn.grid(row=1, column=1, pady=2, padx=2)
         self.button_clear.grid(row=1, column=0, pady=2)
+        self.button_info.grid(row=1, column=2, pady=2)
 
-        # self.canvas.bind("<Motion>", self.start_pos)
         self.canvas.bind("<B1-Motion>", self.draw_lines)
 
     def clear_all(self):
         self.canvas.delete("all")
 
     def classify_handwriting(self):
+
         HWND = self.canvas.winfo_id()
-        rect = win32gui.GetWindowRect(HWND)  # получаем координату холста
-        im = ImageGrab.grab(rect)
+        rect = win32gui.GetWindowRect(HWND)
+        im = ImageGrab.grab((rect[0] + 23, rect[1] + 23, rect[2] + 80, rect[3] + 80))
 
         digit, acc = predict_digit(im)
         self.label.configure(text=str(digit) + ', ' + str(int(acc * 100)) + '%')
@@ -107,8 +110,13 @@ class App(tk.Tk):
         self.x = event.x
         self.y = event.y
         r = 8
-        self.canvas.create_oval(self.x - r, self.y - r, self.x + r, self.y + r, fill='black')
+        self.canvas.create_oval(self.x - r, self.y - r, self.x + r, self.y + r, fill='white', outline="")
+
+    def print_info(self):
+        print(win32gui.GetWindowRect(self.canvas.winfo_id()))
+        print(self.x, self.y)
 
 
 app = App()
+app["bg"] = "black"
 mainloop()
